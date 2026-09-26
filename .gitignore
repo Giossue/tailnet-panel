@@ -1,0 +1,35 @@
+# Entornos y archivos generados
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.spec
+
+# Configuración local, credenciales y archivos de escritorio personales
+.env
+.env.*
+!.env.example
+.pgpass
+.pypirc
+.npmrc
+credentials.json
+id_rsa*
+id_ed25519*
+*.log
+*.key
+*.pem
+*.p12
+*.pfx
+*.sqlite*
+.directory
+
+# Archivos de sistemas operativos y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
