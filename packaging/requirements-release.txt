@@ -1,0 +1,10 @@
+# Resolved Linux x86_64 build set for Tailnet Panel 1.0.0.
+altgraph==0.17.5
+packaging==26.3
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.7
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.2
+PyQt6_sip==13.12.0
+QtAwesome==1.4.2
+QtPy==2.4.3

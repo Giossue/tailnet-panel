@@ -54,6 +54,20 @@ Las capturas usan datos ficticios.
 - **Python 3.10+** (probado con Python 3.14 en Linux).
 - **Tailscale** instalado y su CLI disponible en el `PATH`. El panel no incluye Tailscale.
 
+### Instaladores Linux
+
+Descarga los archivos de la [última release](https://github.com/Giossue/tailnet-panel/releases). Los instaladores son para **x86_64**, se compilan en Debian 12 y requieren **glibc 2.36 o posterior**. El código fuente y `SHA256SUMS.txt` están en la misma release.
+
+| Distribución | Archivo | Instalar |
+| --- | --- | --- |
+| Debian 12+, Ubuntu 24.04+ y derivadas | `.deb` | `sudo apt install ./tailnet-panel_1.0.0_amd64.deb` |
+| Fedora y distribuciones compatibles con RPM | `.rpm` | `sudo dnf install ./tailnet-panel-1.0.0-1.x86_64.rpm` |
+| Arch y derivadas | `.pkg.tar.zst` | `sudo pacman -U ./tailnet-panel-1.0.0-1-x86_64.pkg.tar.zst` |
+| Otras distribuciones con glibc compatible | `.AppImage` | `chmod +x Tailnet-Panel-1.0.0-x86_64.AppImage && ./Tailnet-Panel-1.0.0-x86_64.AppImage` |
+
+Después de instalar un paquete, abre **Tailnet Panel** desde el menú de aplicaciones o ejecuta `tailnet-panel`. Instala Tailscale por separado y usa el panel con tu usuario normal.
+La AppImage también necesita las bibliotecas gráficas del sistema `libGL.so.1` y `libEGL.so.1` y fuentes de escritorio; los paquetes nativos declaran esas dependencias.
+
 ### Linux / macOS
 
 ```bash

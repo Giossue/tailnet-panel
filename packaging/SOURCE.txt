@@ -1,0 +1,6 @@
+Tailnet Panel source code for this version is available at:
+https://github.com/Giossue/tailnet-panel/releases
+
+The matching source archive is attached to the release with the same version
+as this package. The source repository is:
+https://github.com/Giossue/tailnet-panel

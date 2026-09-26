@@ -27,6 +27,20 @@ The screenshots use fictional data.
 - Python 3.10 or newer. Linux has been tested with Python 3.14.
 - Tailscale installed, with its CLI available on `PATH` or at a path selected in the panel.
 
+## Linux installers
+
+Download packages from the [latest release](https://github.com/Giossue/tailnet-panel/releases). They target **x86_64**, are built on Debian 12, and require **glibc 2.36 or newer**. The matching source archive and `SHA256SUMS.txt` are attached.
+
+| Distribution | File | Install |
+| --- | --- | --- |
+| Debian 12+, Ubuntu 24.04+ and derivatives | `.deb` | `sudo apt install ./tailnet-panel_1.0.0_amd64.deb` |
+| Fedora and RPM compatible distributions | `.rpm` | `sudo dnf install ./tailnet-panel-1.0.0-1.x86_64.rpm` |
+| Arch and derivatives | `.pkg.tar.zst` | `sudo pacman -U ./tailnet-panel-1.0.0-1-x86_64.pkg.tar.zst` |
+| Other compatible distributions | `.AppImage` | `chmod +x Tailnet-Panel-1.0.0-x86_64.AppImage && ./Tailnet-Panel-1.0.0-x86_64.AppImage` |
+
+After installing a native package, launch **Tailnet Panel** from the application menu or run `tailnet-panel`. Install Tailscale separately and use the panel as your regular user.
+The AppImage also needs the system graphics libraries `libGL.so.1` and `libEGL.so.1` and desktop fonts; native packages declare these dependencies.
+
 Run these commands from the project directory.
 
 ### Linux and macOS

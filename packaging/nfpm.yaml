@@ -1,0 +1,50 @@
+name: tailnet-panel
+arch: amd64
+platform: linux
+version: ${VERSION}
+release: 1
+section: net
+priority: optional
+maintainer: Giossue <106643420+Giossue@users.noreply.github.com>
+description: Desktop interface for the Tailscale command line tool
+vendor: Tailnet Panel community project
+homepage: https://github.com/Giossue/tailnet-panel
+license: GPL-3.0-only
+archlinux:
+  packager: Giossue <106643420+Giossue@users.noreply.github.com>
+overrides:
+  deb:
+    depends:
+      - libc6 (>= 2.36)
+      - fontconfig
+      - libegl1
+      - libgl1
+  rpm:
+    depends:
+      - glibc >= 2.36
+      - fontconfig
+      - libglvnd-egl
+      - libglvnd-glx
+  archlinux:
+    depends:
+      - fontconfig
+      - glibc
+      - libglvnd
+contents:
+  - src: dist/release-staging/tailnet-panel
+    dst: /usr/bin/tailnet-panel
+    file_info:
+      mode: 0755
+  - src: packaging/tailnet-panel.desktop
+    dst: /usr/share/applications/tailnet-panel.desktop
+  - src: dist/release-staging/tailnet-panel.png
+    dst: /usr/share/icons/hicolor/256x256/apps/tailnet-panel.png
+  - src: LICENSE
+    dst: /usr/share/doc/tailnet-panel/LICENSE
+  - src: THIRD_PARTY_NOTICES.md
+    dst: /usr/share/doc/tailnet-panel/THIRD_PARTY_NOTICES.md
+  - src: packaging/SOURCE.txt
+    dst: /usr/share/doc/tailnet-panel/SOURCE.txt
+  - src: dist/release-staging/licenses/
+    dst: /usr/share/doc/tailnet-panel/licenses
+    type: tree

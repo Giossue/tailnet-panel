@@ -1,0 +1,76 @@
+name: Instaladores Linux
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          expected="v$(sed -n 's/^VERSION = "\([^"]*\)"/\1/p' app/config.py)"
+          test "$expected" = "${GITHUB_REF_NAME}"
+      - name: Build Debian 12 environment
+        run: docker build -f packaging/Containerfile -t tailnet-panel-release .
+      - name: Download and verify packaging tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist/tools
+          gh release download v2.47.0 -R goreleaser/nfpm -p nfpm_2.47.0_Linux_x86_64.tar.gz -D dist/tools
+          gh release download 1.9.1 -R AppImage/appimagetool -p appimagetool-x86_64.AppImage -D dist/tools
+          printf '%s  %s\n' \
+            '0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783' 'dist/tools/nfpm_2.47.0_Linux_x86_64.tar.gz' \
+            'ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0' 'dist/tools/appimagetool-x86_64.AppImage' \
+            | sha256sum -c -
+          tar -xzf dist/tools/nfpm_2.47.0_Linux_x86_64.tar.gz -C dist/tools nfpm
+          chmod +x dist/tools/nfpm dist/tools/appimagetool-x86_64.AppImage
+      - name: Test, compile and package
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src -e QT_QPA_PLATFORM=offscreen tailnet-panel-release sh -ec '
+            python -m pip install --only-binary=:all: -r packaging/requirements-release.txt
+            python -m unittest discover -s tests -v
+            python build_executable.py
+            python build_release.py --nfpm dist/tools/nfpm --appimagetool dist/tools/appimagetool-x86_64.AppImage
+            if timeout 8 dist/TailnetPanel; then echo "Executable exited unexpectedly"; exit 1; else test "$?" -eq 124; fi
+            if timeout 12 dist/Tailnet-Panel-1.0.0-x86_64.AppImage --appimage-extract-and-run; then echo "AppImage exited unexpectedly"; exit 1; else test "$?" -eq 124; fi
+          '
+      - name: Verify packages and launchers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm zstd
+          dpkg-deb -I dist/*.deb
+          dpkg-deb -c dist/*.deb | grep /usr/bin/tailnet-panel
+          rpm -qip dist/*.rpm
+          rpm -qplp dist/*.rpm | grep /usr/bin/tailnet-panel
+          tar --zstd -tf dist/*.pkg.tar.zst | grep usr/bin/tailnet-panel
+          cd dist && sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-installers
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+            dist/*.AppImage
+            dist/*source.tar.gz
+            dist/SHA256SUMS.txt
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/*.deb dist/*.rpm dist/*.pkg.tar.zst dist/*.AppImage dist/*source.tar.gz dist/SHA256SUMS.txt \
+            --verify-tag --title "Tailnet Panel $GITHUB_REF_NAME" --notes-file packaging/RELEASE_NOTES.md

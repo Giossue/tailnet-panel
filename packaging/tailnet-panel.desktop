@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Tailnet Panel
+Comment=Community desktop interface for Tailscale
+Comment[es]=Panel comunitario de escritorio para Tailscale
+Exec=tailnet-panel
+TryExec=tailnet-panel
+Icon=tailnet-panel
+Terminal=false
+Categories=Network;
