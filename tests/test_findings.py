@@ -208,7 +208,8 @@ os.execv(sys.argv[2], sys.argv[2:])
             results = []
             runner.started.connect(commands.append)
             runner.finished.connect(results.append)
-            with patch.dict(os.environ, {"PATH": f"{folder}:{os.environ.get('PATH', '')}"}):
+            with patch.dict(os.environ, {"PATH": f"{folder}:{os.environ.get('PATH', '')}"}), \
+                 patch("app.core.runner.os.geteuid", return_value=1000):
                 runner.run(["switch", "work"], needs_sudo=True)
                 self._wait(runner.finished)
             self.assertEqual(len(results), 1)

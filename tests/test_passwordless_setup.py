@@ -1,5 +1,6 @@
 """La configuración de sudo se prueba sin tocar /etc."""
-import os
+import contextlib
+import io
 import stat
 import sys
 import tempfile
@@ -24,12 +25,14 @@ class PasswordlessSetupTests(unittest.TestCase):
                  patch.object(setup, "valid_tailscale_path", return_value="/usr/bin/tailscale"), \
                  patch.object(setup.shutil, "which", return_value=str(validator)), \
                  patch.object(sys, "argv", args):
-                self.assertEqual(setup.main(), 0)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(setup.main(), 0)
                 rule = root / "tailnet-panel-testuser"
                 self.assertEqual(stat.S_IMODE(rule.stat().st_mode), 0o440)
                 self.assertIn("testuser ALL=(root) NOPASSWD: /usr/bin/tailscale", rule.read_text())
                 with patch.object(sys, "argv", args + ["--remove"]):
-                    self.assertEqual(setup.main(), 0)
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        self.assertEqual(setup.main(), 0)
                 self.assertFalse(rule.exists())
 
     def test_refuses_to_overwrite_an_unmanaged_rule(self):
@@ -41,8 +44,9 @@ class PasswordlessSetupTests(unittest.TestCase):
                  patch.object(setup.os, "geteuid", return_value=0), \
                  patch.object(setup, "valid_user", return_value="testuser"), \
                  patch.object(sys, "argv", ["setup", "--user", "testuser", "--remove"]):
-                with self.assertRaises(SystemExit):
-                    setup.main()
+                with contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        setup.main()
             self.assertTrue(rule.exists())
 
 
