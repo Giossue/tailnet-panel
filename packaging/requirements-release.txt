@@ -1,4 +1,4 @@
-# Resolved Linux x86_64 build set for Tailnet Panel 1.0.0.
+# Resolved Linux x86_64 build set for Tailnet Panel 1.0.1.
 altgraph==0.17.5
 packaging==26.3
 pyinstaller==6.22.3

@@ -60,10 +60,10 @@ Descarga los archivos de la [última release](https://github.com/Giossue/tailnet
 
 | Distribución | Archivo | Instalar |
 | --- | --- | --- |
-| Debian 12+, Ubuntu 24.04+ y derivadas | `.deb` | `sudo apt install ./tailnet-panel_1.0.0_amd64.deb` |
-| Fedora y distribuciones compatibles con RPM | `.rpm` | `sudo dnf install ./tailnet-panel-1.0.0-1.x86_64.rpm` |
-| Arch y derivadas | `.pkg.tar.zst` | `sudo pacman -U ./tailnet-panel-1.0.0-1-x86_64.pkg.tar.zst` |
-| Otras distribuciones con glibc compatible | `.AppImage` | `chmod +x Tailnet-Panel-1.0.0-x86_64.AppImage && ./Tailnet-Panel-1.0.0-x86_64.AppImage` |
+| Debian 12+, Ubuntu 24.04+ y derivadas | `.deb` | `sudo apt install ./tailnet-panel_1.0.1_amd64.deb` |
+| Fedora y distribuciones compatibles con RPM | `.rpm` | `sudo dnf install ./tailnet-panel-1.0.1-1.x86_64.rpm` |
+| Arch y derivadas | `.pkg.tar.zst` | `sudo pacman -U ./tailnet-panel-1.0.1-1-x86_64.pkg.tar.zst` |
+| Otras distribuciones con glibc compatible | `.AppImage` | `chmod +x Tailnet-Panel-1.0.1-x86_64.AppImage && ./Tailnet-Panel-1.0.1-x86_64.AppImage` |
 
 Después de instalar un paquete, abre **Tailnet Panel** desde el menú de aplicaciones o ejecuta `tailnet-panel`. Instala Tailscale por separado y usa el panel con tu usuario normal.
 La AppImage también necesita las bibliotecas gráficas del sistema `libGL.so.1` y `libEGL.so.1` y fuentes de escritorio; los paquetes nativos declaran esas dependencias.
@@ -95,14 +95,23 @@ Si mueves la carpeta del proyecto, vuelve a crear el entorno virtual.
 
 ### Permisos en Linux
 
-Tailscale ejecuta su daemon con privilegios. Para administrar el daemon desde el panel con tu cuenta normal, registra tu usuario como operador una sola vez:
+Tailscale ejecuta su daemon con privilegios. Para administrar el perfil activo desde el panel con tu cuenta normal, registra tu usuario como operador:
 
 ~~~bash
 sudo tailscale set --operator="$USER"
 tailscale get operator
 ~~~
 
-También puedes usar **Habilitar permisos** en la pantalla principal. Después, vuelve a abrir el panel. Las operaciones que modifican la instalación de Tailscale o el sistema pueden seguir solicitando autorización. Ejecuta la aplicación con tu usuario normal.
+También puedes usar **Habilitar permisos** en la pantalla principal. Al cambiar de perfil, comprueba `tailscale get operator`: cada perfil puede tener un operador distinto y quizá debas autorizar tu usuario una vez en ese perfil. El panel actualiza este permiso automáticamente. Las operaciones que modifican la instalación de Tailscale o el sistema pueden seguir solicitando autorización. Ejecuta la aplicación con tu usuario normal.
+
+Si usas varios perfiles y quieres ejecutar los comandos de Tailscale sin diálogos de contraseña incluso cuando un perfil no tiene operador, puedes instalar una regla local para tu usuario. Necesitas una autorización administrativa inicial; Linux no permite que la aplicación se conceda privilegios a sí misma. Desde este repositorio:
+
+~~~bash
+sudo python3 ./configure_passwordless_tailscale.py
+sudo -n tailscale version
+~~~
+
+En un paquete `.deb`, `.rpm` o de Arch, el script está en `/usr/share/tailnet-panel/configure_passwordless_tailscale.py`. La AppImage incluye el script al extraerla, y también está en el archivo de código fuente de la release. La regla autoriza a **tu usuario a ejecutar cualquier comando de la CLI de Tailscale como root sin contraseña**; se limita al ejecutable de Tailscale, pero permite todos sus argumentos. Reinicia el panel después de instalarla. Para quitarla, ejecuta el mismo script con `--remove` usando `sudo`.
 
 ### Acceso directo Linux
 

@@ -81,6 +81,34 @@ def requires_system_elevation(args: List[str]) -> bool:
         args[0] == "update" or args[:2] == ["configure", "synology"]
     )
 
+
+_sudo_probe_cache = {}
+
+
+def passwordless_sudo_available(tailscale_path: str) -> bool:
+    """Comprueba sin interacción si sudo permite ejecutar la CLI como root."""
+    sudo = shutil.which("sudo") if IS_LINUX else None
+    if not sudo:
+        return False
+    cache_key = (sudo, tailscale_path)
+    cached = _sudo_probe_cache.get(cache_key)
+    if cached and cached[0] > time.monotonic():
+        return cached[1]
+    try:
+        probe = subprocess.run(
+            [sudo, "-n", tailscale_path, "version"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=1.5,
+            check=False,
+        )
+        available = probe.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        available = False
+    _sudo_probe_cache[cache_key] = (time.monotonic() + 15, available)
+    return available
+
 class CommandResult:
     def __init__(self, command: str, exit_code: int, output: str, error_output: str, duration_ms: int):
         self.command = command
@@ -98,6 +126,7 @@ class CommandRunner(QObject):
     started = pyqtSignal(str)                 # Comando completo ejecutado
     output_line = pyqtSignal(str, bool)       # (línea de texto, es_error)
     finished = pyqtSignal(CommandResult)      # Resultado al terminar
+    profile_changed = pyqtSignal()             # La cuenta activa puede tener otro operador
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -109,6 +138,7 @@ class CommandRunner(QObject):
         self.history: List[CommandResult] = []
         self._sensitive_values: List[str] = []
         self._secret_file: Optional[str] = None
+        self._active_args: List[str] = []
 
     def _redact_output(self, content: str) -> str:
         for value in self._sensitive_values:
@@ -149,6 +179,7 @@ class CommandRunner(QObject):
             return
 
         ts_bin = config.tailscale_path
+        self._active_args = list(args[:2] if args and args[0] == "switch" else args[:1])
         self._sensitive_values = sensitive_values(args)
         execution_args = list(args)
         auth_key = auth_key_from_args(args)
@@ -168,6 +199,7 @@ class CommandRunner(QObject):
                 result = CommandResult("tailscale [clave oculta]", -1, "", str(error), 0)
                 self.output_line.emit(str(error), True)
                 self.history.append(result)
+                self._active_args = []
                 self.finished.emit(result)
                 return
         final_args = []
@@ -199,6 +231,10 @@ class CommandRunner(QObject):
                     exec_program = ts_bin
                     exec_args = final_args
                     display_cmd = f"{ts_bin} {' '.join(final_args)}"
+                elif passwordless_sudo_available(ts_bin):
+                    exec_program = "sudo"
+                    exec_args = ["-n", ts_bin] + final_args
+                    display_cmd = f"sudo -n {ts_bin} {' '.join(final_args)}"
                 elif config.use_pkexec and shutil.which("pkexec"):
                     exec_program = "pkexec"
                     exec_args = [ts_bin] + final_args
@@ -249,6 +285,7 @@ class CommandRunner(QObject):
         self._cleanup_secret_file()
         self._sensitive_values = []
         self.history.append(result)
+        self._active_args = []
         self.finished.emit(result)
 
     def _on_stdout(self):
@@ -302,6 +339,14 @@ class CommandRunner(QObject):
         process.deleteLater()
         self._cleanup_secret_file()
         self.history.append(result)
+        if result.success and self._active_args and (
+            self._active_args[0] in ("switch", "login", "logout")
+            and self._active_args[1:2] != ["--list"]
+        ):
+            from app.config import clear_current_user_operator
+            clear_current_user_operator()
+            self.profile_changed.emit()
+        self._active_args = []
         self.finished.emit(result)
 
     @staticmethod

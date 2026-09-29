@@ -88,6 +88,9 @@ def build_appdir() -> None:
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         shutil.copy2(ROOT / name, docs / name)
     shutil.copy2(ROOT / "packaging" / "SOURCE.txt", docs / "SOURCE.txt")
+    helper_dir = APPDIR / "usr" / "share" / "tailnet-panel"
+    helper_dir.mkdir(parents=True)
+    shutil.copy2(ROOT / "configure_passwordless_tailscale.py", helper_dir / "configure_passwordless_tailscale.py")
     shutil.copytree(STAGING / "licenses", docs / "licenses")
     apprun = APPDIR / "AppRun"
     apprun.write_text(

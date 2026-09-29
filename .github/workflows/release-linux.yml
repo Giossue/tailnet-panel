@@ -44,7 +44,8 @@ jobs:
             python build_executable.py
             python build_release.py --nfpm dist/tools/nfpm --appimagetool dist/tools/appimagetool-x86_64.AppImage
             if timeout 8 dist/TailnetPanel; then echo "Executable exited unexpectedly"; exit 1; else test "$?" -eq 124; fi
-            if timeout 12 dist/Tailnet-Panel-1.0.0-x86_64.AppImage --appimage-extract-and-run; then echo "AppImage exited unexpectedly"; exit 1; else test "$?" -eq 124; fi
+            version=$(sed -n "s/^VERSION = \"\([^\"]*\)\"/\1/p" app/config.py)
+            if timeout 12 "dist/Tailnet-Panel-${version}-x86_64.AppImage" --appimage-extract-and-run; then echo "AppImage exited unexpectedly"; exit 1; else test "$?" -eq 124; fi
           '
       - name: Verify packages and launchers
         run: |
@@ -52,9 +53,12 @@ jobs:
           sudo apt-get install -y rpm zstd
           dpkg-deb -I dist/*.deb
           dpkg-deb -c dist/*.deb | grep /usr/bin/tailnet-panel
+          dpkg-deb -c dist/*.deb | grep /usr/share/tailnet-panel/configure_passwordless_tailscale.py
           rpm -qip dist/*.rpm
           rpm -qplp dist/*.rpm | grep /usr/bin/tailnet-panel
+          rpm -qplp dist/*.rpm | grep /usr/share/tailnet-panel/configure_passwordless_tailscale.py
           tar --zstd -tf dist/*.pkg.tar.zst | grep usr/bin/tailnet-panel
+          tar --zstd -tf dist/*.pkg.tar.zst | grep usr/share/tailnet-panel/configure_passwordless_tailscale.py
           cd dist && sha256sum -c SHA256SUMS.txt
       - uses: actions/upload-artifact@v7
         with:

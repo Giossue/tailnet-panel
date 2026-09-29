@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from app.core.command_registry import CommandInfo, CommandParam
-from app.core.runner import global_runner, redact_arguments, requires_system_elevation
+from app.core.runner import global_runner, redact_arguments, requires_system_elevation, passwordless_sudo_available
 from app.config import config, IS_LINUX, IS_MACOS, is_current_user_operator
 from app.ui.icons import get_icon
 from app.ui.components.controls import AppButton, AppCheckBox, AppComboBox, AppSpinBox
@@ -25,6 +25,11 @@ class CommandDialog(QDialog):
             and cmd_info.needs_sudo
             and not requires_system_elevation(cmd_info.base_args)
             and is_current_user_operator()
+        )
+        self.passwordless_mode = (
+            IS_LINUX and cmd_info.needs_sudo and not self.operator_mode
+            and not config.force_no_sudo
+            and passwordless_sudo_available(config.tailscale_path)
         )
         self.param_widgets: Dict[str, Any] = {}
         self.setWindowTitle(f"Comando #{cmd_info.id}: {cmd_info.name}")
@@ -85,8 +90,8 @@ class CommandDialog(QDialog):
             icon_lbl = QLabel()
             icon_lbl.setPixmap(get_icon("lock").pixmap(14, 14))
             notice = (
-                "Tu cuenta operadora ejecutará este comando sin autorización adicional."
-                if self.operator_mode else
+                "Este comando se ejecutará sin autorización adicional."
+                if self.operator_mode or self.passwordless_mode else
                 "El sistema puede solicitar autorización para ejecutar este comando."
             )
             sudo_notice = QLabel(notice)
@@ -243,7 +248,10 @@ class CommandDialog(QDialog):
         display_args = redact_arguments(args)
         ts = "tailscale"
         if self.cmd_info.needs_sudo and not self.operator_mode and not config.force_no_sudo and (IS_LINUX or IS_MACOS):
-            ts = "pkexec tailscale" if IS_LINUX and config.use_pkexec and shutil.which("pkexec") else "sudo tailscale"
+            if self.passwordless_mode:
+                ts = "sudo -n tailscale"
+            else:
+                ts = "pkexec tailscale" if IS_LINUX and config.use_pkexec and shutil.which("pkexec") else "sudo tailscale"
         if config.custom_socket:
             cmd_preview = f"{ts} --socket={config.custom_socket} {' '.join(display_args)}"
         else:

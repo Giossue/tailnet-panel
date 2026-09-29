@@ -39,7 +39,7 @@ from app.ui.views.appc_view import AppcView
 from app.ui.views.system_view import SystemView
 from app.ui.views.all_commands_view import AllCommandsView
 from app.core.async_query import AsyncTailscaleQuery
-from app.core.runner import global_runner
+from app.core.runner import global_runner, passwordless_sudo_available
 
 def get_distro_name() -> str:
     """Obtiene el nombre amigable de la distribución Linux o sistema operativo."""
@@ -77,12 +77,12 @@ class MainWindow(QMainWindow):
         self.status_query.completed.connect(self._on_status_response)
         self.operator_query = AsyncTailscaleQuery(self)
         self.operator_query.completed.connect(self._on_operator_response)
+        global_runner.profile_changed.connect(lambda: self.refresh_operator_status(force=True))
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.refresh_status)
         if config.auto_refresh:
             self.status_timer.start(max(2, config.refresh_interval) * 1000)
         QTimer.singleShot(0, self.refresh_status)
-        QTimer.singleShot(0, self.refresh_operator_status)
 
     def init_ui(self):
         central_widget = QWidget()
@@ -324,6 +324,7 @@ class MainWindow(QMainWindow):
     def refresh_status(self):
         """Consulta el estado de forma asíncrona."""
         self.status_query.run(["status", "--json"])
+        self.refresh_operator_status()
 
     def refresh_operator_status(self, force=False):
         if force:
@@ -332,7 +333,11 @@ class MainWindow(QMainWindow):
 
     def _on_operator_response(self, output):
         set_current_user_operator(output or "")
-        self.view_dashboard.operator_frame.setVisible(not is_current_user_operator())
+        has_access = is_current_user_operator() or (
+            IS_LINUX and not config.force_no_sudo
+            and passwordless_sudo_available(config.tailscale_path)
+        )
+        self.view_dashboard.operator_frame.setVisible(not has_access)
 
     def _on_status_response(self, output):
         try:

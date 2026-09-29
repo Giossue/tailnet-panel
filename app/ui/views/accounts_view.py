@@ -19,8 +19,8 @@ class AccountsView(QWidget):
         self.init_ui()
         self.accounts_query = AsyncTailscaleQuery(self)
         self.accounts_query.completed.connect(self._on_accounts_response)
-        self._switch_in_progress = False
-        global_runner.finished.connect(self._on_command_finished)
+        self._accounts_refresh_pending = False
+        global_runner.profile_changed.connect(self.refresh_accounts)
         self.refresh_accounts()
 
     def init_ui(self):
@@ -59,6 +59,11 @@ class AccountsView(QWidget):
         self.accounts_list_widget = QListWidget()
         self.accounts_list_widget.currentItemChanged.connect(self._on_account_selected)
         switch_layout.addWidget(self.accounts_list_widget)
+
+        self.accounts_status = QLabel()
+        self.accounts_status.setProperty("class", "muted-copy")
+        self.accounts_status.setWordWrap(True)
+        switch_layout.addWidget(self.accounts_status)
 
         layout.addWidget(switch_box)
 
@@ -105,18 +110,35 @@ class AccountsView(QWidget):
         layout.addStretch()
 
     def refresh_accounts(self):
-        self.accounts_query.run(["switch", "--list", "--json"])
+        if self.accounts_query.run(["switch", "--list", "--json"], allow_passwordless_sudo=True):
+            self.accounts_status.setText("Cargando cuentas…")
+        else:
+            self._accounts_refresh_pending = True
 
     def _on_accounts_response(self, output):
+        if self._accounts_refresh_pending:
+            self._accounts_refresh_pending = False
+            self.refresh_accounts()
+            return
         self.accounts_list_widget.clear()
         if not output:
+            if "profiles access denied" in self.accounts_query.last_error.lower():
+                self.accounts_status.setText(
+                    "El perfil activo no permite leer las cuentas. Habilita el operador "
+                    "para este perfil o configura el acceso local sin contraseña."
+                )
+            else:
+                self.accounts_status.setText("No se pudo cargar la lista de cuentas.")
             return
         try:
             accounts = json.loads(output)
         except (TypeError, ValueError):
+            self.accounts_status.setText("Tailscale devolvió una lista de cuentas inválida.")
             return
         if not isinstance(accounts, list):
+            self.accounts_status.setText("Tailscale devolvió una lista de cuentas inválida.")
             return
+        self.accounts_status.setText("" if accounts else "No hay cuentas guardadas.")
         for account in accounts:
             if not isinstance(account, dict):
                 continue
@@ -146,15 +168,7 @@ class AccountsView(QWidget):
         if not target:
             QMessageBox.warning(self, "Atención", "Escribe o selecciona la cuenta.")
             return
-        if not global_runner.is_running():
-            self._switch_in_progress = True
         global_runner.run(["switch", target], needs_sudo=True)
-
-    def _on_command_finished(self, result):
-        if self._switch_in_progress:
-            self._switch_in_progress = False
-            if result.success:
-                self.refresh_accounts()
 
     def action_remove_account(self):
         target = self.account_target_input.text().strip()

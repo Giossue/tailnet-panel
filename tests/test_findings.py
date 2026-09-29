@@ -1,6 +1,7 @@
 """Regresiones de los hallazgos de seguridad y fluidez del panel."""
 import base64
 import getpass
+import json
 import os
 import shlex
 import stat
@@ -14,7 +15,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import QEventLoop, QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from app.config import config, set_current_user_operator
+from app.config import config, is_current_user_operator, set_current_user_operator
 from app.core.async_query import AsyncTailscaleQuery
 from app.core.command_registry import COMMANDS_BY_ID
 from app.core.runner import CommandRunner, build_macos_terminal_script
@@ -143,8 +144,76 @@ print('{"BackendState":"Stopped","Peer":{}}')
             self._wait(runner.finished)
             self.assertTrue(commands)
             self.assertFalse(commands[0].startswith(("pkexec ", "sudo ")))
+            self.assertTrue(COMMANDS_BY_ID[90].needs_sudo)
             self.assertTrue(COMMANDS_BY_ID[91].needs_sudo)
             self.assertTrue(COMMANDS_BY_ID[92].needs_sudo)
+
+    def test_switch_invalidates_the_previous_profiles_operator(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config.tailscale_path = self._fake_binary(folder, "print('ok')\n")
+            config.custom_socket = ""
+            config.force_no_sudo = False
+            set_current_user_operator(getpass.getuser())
+            runner = CommandRunner()
+            changes = []
+            runner.profile_changed.connect(lambda: changes.append(True))
+            runner.run(["switch", "work"], needs_sudo=True)
+            self._wait(runner.finished)
+            self.assertEqual(changes, [True])
+            self.assertFalse(is_current_user_operator())
+
+    def test_profile_list_retries_with_passwordless_sudo_without_prompt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config.tailscale_path = self._fake_binary(folder, """
+import json, os, sys
+if not os.environ.get('TEST_SUDO_MODE'):
+    print('Access denied: profiles access denied', file=sys.stderr)
+    sys.exit(1)
+print(json.dumps([{'id': 'profile-1', 'selected': True}]))
+""")
+            config.custom_socket = ""
+            sudo = Path(folder) / "sudo"
+            sudo.write_text("""#!/usr/bin/env python3
+import os, sys
+assert sys.argv[1] == '-n'
+os.environ['TEST_SUDO_MODE'] = '1'
+os.execv(sys.argv[2], sys.argv[2:])
+""", encoding="utf-8")
+            sudo.chmod(0o700)
+            query = AsyncTailscaleQuery()
+            results = []
+            query.completed.connect(results.append)
+            with patch.dict(os.environ, {"PATH": f"{folder}:{os.environ.get('PATH', '')}"}):
+                query.run(["switch", "--list", "--json"], allow_passwordless_sudo=True)
+                self._wait(query.completed)
+            self.assertEqual(len(results), 1)
+            self.assertEqual(json.loads(results[0])[0]["id"], "profile-1")
+            self.assertEqual(query.last_error, "")
+
+    def test_runner_uses_passwordless_sudo_for_a_profile_without_operator(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config.tailscale_path = self._fake_binary(folder, "print('ok')\n")
+            config.custom_socket = ""
+            config.force_no_sudo = False
+            set_current_user_operator("")
+            sudo = Path(folder) / "sudo"
+            sudo.write_text("""#!/usr/bin/env python3
+import os, sys
+assert sys.argv[1] == '-n'
+os.execv(sys.argv[2], sys.argv[2:])
+""", encoding="utf-8")
+            sudo.chmod(0o700)
+            runner = CommandRunner()
+            commands = []
+            results = []
+            runner.started.connect(commands.append)
+            runner.finished.connect(results.append)
+            with patch.dict(os.environ, {"PATH": f"{folder}:{os.environ.get('PATH', '')}"}):
+                runner.run(["switch", "work"], needs_sudo=True)
+                self._wait(runner.finished)
+            self.assertEqual(len(results), 1)
+            self.assertTrue(results[0].success)
+            self.assertTrue(commands[0].startswith("sudo -n "))
 
     def test_terminal_arguments_are_quoted_without_shell_interpolation(self):
         dangerous = 'host"; touch /tmp/should-never-exist; $(id)'

@@ -45,6 +45,8 @@ contents:
     dst: /usr/share/doc/tailnet-panel/THIRD_PARTY_NOTICES.md
   - src: packaging/SOURCE.txt
     dst: /usr/share/doc/tailnet-panel/SOURCE.txt
+  - src: configure_passwordless_tailscale.py
+    dst: /usr/share/tailnet-panel/configure_passwordless_tailscale.py
   - src: dist/release-staging/licenses/
     dst: /usr/share/doc/tailnet-panel/licenses
     type: tree

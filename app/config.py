@@ -14,7 +14,7 @@ IS_MACOS = sys.platform == "darwin"
 
 APP_NAME = "Tailnet Panel"
 APP_ORG = "TailnetPanelOrg"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 _LEGACY_SETTINGS = ("TailscalePanelOrg", "Tailscale Panel")
 _PERSISTED_KEYS = (
@@ -135,6 +135,12 @@ def set_current_user_operator(operator_name: str) -> None:
         getpass.getuser(),
         operator_name.strip() == getpass.getuser(),
     )
+
+
+def clear_current_user_operator() -> None:
+    """Invalida el permiso al cambiar el perfil activo de Tailscale."""
+    global _operator_cache
+    _operator_cache = None
 
 def is_current_user_operator() -> bool:
     """Lee la última comprobación; nunca bloquea la interfaz con un proceso."""

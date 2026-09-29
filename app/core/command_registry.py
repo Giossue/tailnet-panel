@@ -941,7 +941,8 @@ ALL_COMMANDS: List[CommandInfo] = [
         category="Cuentas",
         description="Lista las cuentas y perfiles de Tailscale configurados localmente.",
         example="tailscale switch --list",
-        base_args=["switch", "--list"]
+        base_args=["switch", "--list"],
+        needs_sudo=True
     ),
     CommandInfo(
         id=91,
